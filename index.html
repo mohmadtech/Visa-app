@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تتبع بطاقات الفيزا</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;--gold:#f5c842;--gold2:#e6a800;--green:#00d68f;--red:#ff4d6d;--blue:#3b82f6;--orange:#f97316;--text:#e2e8f0;--muted:#64748b;--radius:14px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;background-image:radial-gradient(ellipse at 10% 20%,rgba(245,200,66,.06) 0%,transparent 50%),radial-gradient(ellipse at 90% 80%,rgba(59,130,246,.05) 0%,transparent 50%)}
+
+/* AUTH SCREEN */
+#authScreen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(ellipse at 20% 30%,rgba(245,200,66,.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 70%,rgba(59,130,246,.07) 0%,transparent 50%)}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.auth-logo{width:54px;height:54px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px;box-shadow:0 4px 20px rgba(245,200,66,.3)}
+.auth-title{font-size:20px;font-weight:900;color:var(--gold);margin-bottom:4px}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+/* tabs removed */
+.auth-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:9px;font-family:'Cairo',sans-serif;font-size:14px;outline:none;margin-bottom:10px;transition:border-color .2s;text-align:left;direction:ltr}
+.auth-input:focus{border-color:var(--gold)}
+.auth-input::placeholder{text-align:right;direction:rtl}
+.btn-google{width:100%;padding:11px;border:1px solid var(--border);border-radius:9px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;background:var(--surface2);color:var(--text);display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-bottom:10px}
+.btn-google:hover{border-color:var(--blue);background:rgba(59,130,246,.08)}
+.btn-auth{width:100%;padding:12px;border:none;border-radius:9px;font-family:'Cairo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;background:var(--gold);color:#0a0e1a;transition:all .2s;margin-bottom:10px}
+.btn-auth:hover{opacity:.9}
+.btn-auth:disabled{opacity:.5;cursor:not-allowed}
+.auth-divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin-bottom:10px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.auth-err{color:var(--red);font-size:12px;margin-bottom:8px;min-height:16px}
+
+/* MAIN APP */
+#appScreen{display:none}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:900;color:var(--gold)}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(245,200,66,.3)}
+.user-area{display:flex;align-items:center;gap:8px}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0a0e1a;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0}
+.user-name{font-size:12px;color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-logout{background:none;border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:7px;font-family:'Cairo',sans-serif;font-size:12px;cursor:pointer;transition:all .2s}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+.status-dot{width:7px;height:7px;background:var(--green);border-radius:50%;box-shadow:0 0 7px var(--green);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.container{max-width:1200px;margin:0 auto;padding:22px 18px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:transform .2s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-card.s-buy::before{background:var(--blue)}.stat-card.s-sell::before{background:var(--green)}.stat-card.s-profit::before{background:var(--gold)}.stat-card.s-avail::before{background:var(--orange)}.stat-card.s-sold::before{background:var(--red)}
+.stat-label{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.stat-value{font-size:22px;font-weight:900}
+.stat-value.c-buy{color:var(--blue)}.stat-value.c-sell{color:var(--green)}.stat-value.c-profit{color:var(--gold)}.stat-value.c-avail{color:var(--orange)}.stat-value.c-sold{color:var(--red)}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:20px;width:fit-content}
+.tab{padding:8px 20px;border:none;border-radius:9px;font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:var(--muted);transition:all .2s}
+.tab.active{background:var(--blue);color:white;box-shadow:0 3px 10px rgba(59,130,246,.3)}
+
+.filters-bar{display:flex;align-items:center;gap:9px;margin-bottom:18px;flex-wrap:wrap}
+.filters-bar select,.filters-bar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:13px;outline:none}
+.filters-bar input{min-width:200px}
+.filters-bar select:focus,.filters-bar input:focus{border-color:var(--gold)}
+.btn-export{background:var(--gold);color:#0a0e1a;border:none;padding:8px 16px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-right:auto;transition:opacity .2s}
+.btn-export:hover{opacity:.85}
+
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.card-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px;transition:transform .2s,box-shadow .2s;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card-item:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.card-item.available{border-color:rgba(249,115,22,.35)}
+.card-item.sold{border-color:rgba(0,214,143,.3)}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.card-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.card-badge.available{background:rgba(249,115,22,.15);color:var(--orange)}
+.card-badge.sold{background:rgba(0,214,143,.15);color:var(--green)}
+.balance-pill{background:rgba(245,200,66,.12);border:1px solid rgba(245,200,66,.25);color:var(--gold);font-size:12px;font-weight:900;padding:2px 9px;border-radius:20px}
+.card-actions{display:flex;gap:4px}
+.btn-icon{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 6px;border-radius:6px;font-size:14px;transition:color .2s,background .2s}
+.btn-icon.sell-btn:hover{color:var(--green);background:rgba(0,214,143,.1)}
+.btn-icon.del:hover{color:var(--red);background:rgba(255,77,109,.1)}
+.card-link{display:flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:6px 10px;margin-bottom:9px}
+.card-link a{color:var(--blue);font-size:11px;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr}
+.card-link a:hover{text-decoration:underline}
+.btn-copy{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px;border-radius:4px;transition:color .2s;flex-shrink:0}
+.btn-copy:hover{color:var(--gold)}
+.card-row3{display:flex;align-items:stretch;gap:6px;background:var(--bg);border-radius:8px;padding:9px 10px}
+.mini-box{flex:1;text-align:center}
+.mini-label{font-size:10px;color:var(--muted);font-weight:700;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.mini-val{font-size:15px;font-weight:900}
+.mini-val.buy{color:var(--blue)}.mini-val.sell{color:var(--green)}
+.mini-date{font-size:9px;color:var(--muted);margin-top:2px}
+.mini-arrow{color:var(--border);font-size:16px;display:flex;align-items:center;flex-shrink:0}
+.profit-box{background:rgba(0,0,0,.25);border-radius:7px;padding:4px 8px;border-right:1px solid var(--border)}
+.card-notes{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.card-notes span{font-size:11px;color:var(--muted);font-style:italic}
+
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;max-width:460px}
+.form-title{font-size:15px;font-weight:700;color:var(--gold);margin-bottom:18px}
+.form-group{margin-bottom:13px}
+.form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:700}
+.form-group input,.form-group textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 13px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--gold)}
+.form-group textarea{resize:vertical;min-height:60px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-primary{width:100%;padding:12px;border:none;border-radius:9px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;background:var(--blue);color:white;margin-top:4px}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:26px;max-width:360px;width:92%}
+.modal h3{font-size:17px;margin-bottom:5px}
+.modal-sub{font-size:11px;color:var(--muted);margin-bottom:16px;direction:ltr;word-break:break-all;text-align:left}
+.modal-btns{display:flex;gap:8px;margin-top:18px}
+.modal-btns button{flex:1;padding:10px;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer}
+.btn-cancel{background:var(--bg);color:var(--text);border:1px solid var(--border)!important}
+.btn-confirm-sell{background:var(--green);color:#0a0e1a}
+.btn-confirm-del{background:var(--red);color:white}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface2);border:1px solid var(--border);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:1000;transition:transform .3s ease;box-shadow:0 8px 30px rgba(0,0,0,.4);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+.empty-state{padding:50px 20px;text-align:center;color:var(--muted)}
+.empty-state .ei{font-size:44px;margin-bottom:10px}
+.loading{padding:50px;text-align:center;color:var(--muted);font-size:13px}
+@media(max-width:600px){.cards-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}.user-name{display:none}}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">💳</div>
+    <div class="auth-title">تتبع بطاقات الفيزا</div>
+    <div class="auth-sub">سجّل دخولك للمتابعة</div>
+    <div style="margin-bottom:18px"></div>
+    <div class="auth-err" id="authErr"></div>
+    <button class="btn-google" onclick="loginGoogle()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      متابعة بـ Google
+    </button>
+    <div class="auth-divider">أو بالإيميل</div>
+    <input class="auth-input" type="email" id="authEmail" placeholder="الإيميل">
+    <input class="auth-input" type="password" id="authPass" placeholder="كلمة السر (6 أحرف على الأقل)">
+    <button class="btn-auth" id="authBtn" onclick="loginEmail()">دخول</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="appScreen">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">💳</div>
+      تتبع بطاقات الفيزا
+    </div>
+    <div class="user-area">
+      <div class="status-dot"></div>
+      <div class="user-avatar" id="userAvatar">؟</div>
+      <span class="user-name" id="userName"></span>
+      <button class="btn-logout" onclick="doLogout()">خروج</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card s-avail"><div class="stat-label">متاحة للبيع</div><div class="stat-value c-avail" id="s-avail">0</div><div class="stat-sub">بطاقة</div></div>
+      <div class="stat-card s-sold"><div class="stat-label">مباعة</div><div class="stat-value c-sold" id="s-sold">0</div><div class="stat-sub">بطاقة</div></div>
+      <div class="stat-card s-buy"><div class="stat-label">إجمالي الشراء</div><div class="stat-value c-buy" id="s-buy">$0</div><div class="stat-sub" id="s-buy-sub">0 بطاقة</div></div>
+      <div class="stat-card s-sell"><div class="stat-label">إجمالي البيع</div><div class="stat-value c-sell" id="s-sell">$0</div><div class="stat-sub" id="s-sell-sub">0 بطاقة</div></div>
+      <div class="stat-card s-profit"><div class="stat-label">صافي الربح</div><div class="stat-value c-profit" id="s-profit">$0</div><div class="stat-sub">من البطاقات المباعة</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('cards')">💳 البطاقات</button>
+      <button class="tab" onclick="switchTab('add')">➕ إضافة بطاقة</button>
+    </div>
+
+    <div id="tab-cards">
+      <div class="filters-bar">
+        <select id="f-status" onchange="applyFilters()">
+          <option value="all">كل البطاقات</option>
+          <option value="available">متاحة فقط</option>
+          <option value="sold">مباعة فقط</option>
+        </select>
+        <select id="f-month" onchange="applyFilters()"><option value="all">كل الأشهر</option></select>
+        <input type="text" id="f-search" placeholder="بحث في الروابط أو الملاحظات..." oninput="applyFilters()">
+        <button class="btn-export" onclick="exportCSV()">⬇️ تصدير Excel</button>
+      </div>
+      <div class="cards-grid" id="cardsGrid"><div class="loading">⏳ جاري التحميل...</div></div>
+    </div>
+
+    <div id="tab-add" style="display:none">
+      <div class="form-card">
+        <div class="form-title">➕ إضافة بطاقة فيزا جديدة</div>
+        <div class="form-group"><label>رابط البطاقة *</label><input type="url" id="f-link" placeholder="https://..." dir="ltr"></div>
+        <div class="form-row">
+          <div class="form-group"><label>رصيد البطاقة ($) *</label><input type="number" id="f-balance" placeholder="مثال: 50" min="0" step="0.01"></div>
+          <div class="form-group"><label>سعر الشراء ($) *</label><input type="number" id="f-buy-price" placeholder="مثال: 45" min="0" step="0.01"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>تاريخ الشراء *</label><input type="date" id="f-buy-date"></div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-group"><label>ملاحظة (اختياري)</label><textarea id="f-note" placeholder="أي تفاصيل..."></textarea></div>
+        <button class="btn-primary" id="addBtn" onclick="addCard()">✅ إضافة البطاقة</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sell Modal -->
+<div class="modal-overlay" id="sellModal">
+  <div class="modal">
+    <h3>💰 تسجيل البيع</h3>
+    <div class="modal-sub" id="sellModalSub"></div>
+    <div class="form-group"><label>سعر البيع ($) *</label><input type="number" id="m-sell-price" placeholder="0.00" min="0" step="0.01"></div>
+    <div class="form-group"><label>تاريخ البيع *</label><input type="date" id="m-sell-date"></div>
+    <div class="form-group"><label>ملاحظة البيع</label><input type="text" id="m-sell-note" placeholder="اسم المشتري أو أي تفاصيل..."></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModals()">إلغاء</button>
+      <button class="btn-confirm-sell" onclick="confirmSell()">✅ تأكيد البيع</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="delModal">
+  <div class="modal">
+    <h3>🗑️ حذف البطاقة</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:18px">هل أنت متأكد؟ لا يمكن التراجع.</p>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModals()">إلغاء</button>
+      <button class="btn-confirm-del" onclick="confirmDelete()">حذف</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+// Telegram Mini App setup
+if (window.Telegram?.WebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBbfByvG2jCj6hNtePmctTsLRMFxsxNotw",
+  authDomain: "telegrambot-f2d02.firebaseapp.com",
+  projectId: "telegrambot-f2d02",
+  storageBucket: "telegrambot-f2d02.firebasestorage.app",
+  messagingSenderId: "22018939443",
+  appId: "1:22018939443:web:5c4604b749c0edf9722146"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const auth = getAuth(app);
+const col  = collection(db, "visa_cards");
+const googleProvider = new GoogleAuthProvider();
+
+let _all = [], _sellId = null, _delId = null, _unsub = null;
+
+// ── AUTH STATE ─────────────────────────────────────────────
+onAuthStateChanged(auth, user => {
+  if (user) {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display  = 'block';
+    const name = user.displayName || user.email || '';
+    document.getElementById('userAvatar').textContent = (name.charAt(0)||'؟').toUpperCase();
+    document.getElementById('userName').textContent   = name;
+    document.getElementById('f-buy-date').valueAsDate  = new Date();
+    document.getElementById('m-sell-date').valueAsDate = new Date();
+    startListening();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display  = 'none';
+    if (_unsub) { _unsub(); _unsub = null; }
+    _all = [];
+  }
+});
+
+function startListening() {
+  if (_unsub) _unsub();
+  const q = query(col, orderBy("buyDate", "desc"));
+  _unsub = onSnapshot(q, snap => {
+    _all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    buildMonthFilter(_all);
+    applyFilters();
+    updateStats(_all);
+  });
+}
+
+// ── AUTH FUNCTIONS ──────────────────────────────────────────
+window.loginGoogle = async function() {
+  document.getElementById('authErr').textContent = '';
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    // Check if account existed before (new users are rejected)
+    const isNew = result._tokenResponse && result._tokenResponse.isNewUser;
+    if (isNew) {
+      await signOut(auth);
+      await result.user.delete();
+      document.getElementById('authErr').textContent = 'هذا الحساب غير مصرح له بالدخول';
+    }
+  }
+  catch(e) {
+    if (e.code !== 'auth/popup-closed-by-user') {
+      document.getElementById('authErr').textContent = 'فشل تسجيل الدخول بـ Google';
+    }
+  }
+};
+
+window.loginEmail = async function() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pass  = document.getElementById('authPass').value;
+  if (!email||!pass) { document.getElementById('authErr').textContent = 'أدخل الإيميل وكلمة السر'; return; }
+  const btn = document.getElementById('authBtn');
+  btn.disabled=true; btn.textContent='جاري الدخول...';
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e) {
+    let msg = 'بيانات خاطئة أو الحساب غير موجود';
+    if (e.code==='auth/wrong-password') msg='كلمة السر خاطئة';
+    if (e.code==='auth/too-many-requests') msg='محاولات كثيرة، انتظر قليلاً';
+    document.getElementById('authErr').textContent = msg;
+    btn.disabled=false; btn.textContent='دخول';
+  }
+};
+
+window.doLogout = async function() { await signOut(auth); };
+
+// ── HELPERS ─────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function fmt(n){ return '$'+(parseFloat(n)||0).toFixed(2); }
+function dateLabel(d){ if(!d)return''; return new Date(d+'T00:00:00').toLocaleDateString('ar',{year:'numeric',month:'long',day:'numeric'}); }
+
+// ── STATS ────────────────────────────────────────────────────
+function updateStats(cards){
+  const avail=cards.filter(c=>c.status==='available');
+  const sold =cards.filter(c=>c.status==='sold');
+  const totalBuy=cards.reduce((s,c)=>s+(c.buyPrice||0),0);
+  const totalSell=sold.reduce((s,c)=>s+(c.sellPrice||0),0);
+  const buyOfSold=sold.reduce((s,c)=>s+(c.buyPrice||0),0);
+  const profit=totalSell-buyOfSold;
+  document.getElementById('s-avail').textContent=avail.length;
+  document.getElementById('s-sold').textContent=sold.length;
+  document.getElementById('s-buy').textContent=fmt(totalBuy);
+  document.getElementById('s-buy-sub').textContent=cards.length+' بطاقة';
+  document.getElementById('s-sell').textContent=fmt(totalSell);
+  document.getElementById('s-sell-sub').textContent=sold.length+' بطاقة';
+  const pel=document.getElementById('s-profit');
+  pel.textContent=(profit>=0?'+':'')+fmt(profit);
+  pel.style.color=profit>=0?'var(--green)':'var(--red)';
+}
+
+// ── MONTH FILTER ─────────────────────────────────────────────
+function buildMonthFilter(cards){
+  const months=new Set();
+  cards.forEach(c=>{ if(c.buyDate){const[y,m]=c.buyDate.split('-');months.add(y+'-'+m);} });
+  const sel=document.getElementById('f-month');
+  const cur=sel.value;
+  sel.innerHTML='<option value="all">كل الأشهر</option>';
+  [...months].sort().reverse().forEach(m=>{
+    const[y,mo]=m.split('-');
+    const label=new Date(y,mo-1).toLocaleDateString('ar',{year:'numeric',month:'long'});
+    sel.innerHTML+='<option value="'+m+'">'+label+'</option>';
+  });
+  sel.value=cur||'all';
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+window.applyFilters=function(){
+  const status=document.getElementById('f-status').value;
+  const month =document.getElementById('f-month').value;
+  const search=(document.getElementById('f-search').value||'').toLowerCase().trim();
+  let list=_all;
+  if(status!=='all') list=list.filter(c=>c.status===status);
+  if(month!=='all')  list=list.filter(c=>c.buyDate&&c.buyDate.startsWith(month));
+  if(search) list=list.filter(c=>(c.link||'').toLowerCase().includes(search)||(c.note||'').toLowerCase().includes(search)||(c.sellNote||'').toLowerCase().includes(search));
+  renderCards(list);
+};
+
+// ── RENDER CARDS ─────────────────────────────────────────────
+function renderCards(cards){
+  const grid=document.getElementById('cardsGrid');
+  if(!cards.length){ grid.innerHTML='<div class="empty-state"><div class="ei">📭</div><p>لا توجد بطاقات</p></div>'; return; }
+  grid.innerHTML=cards.map(c=>{
+    const profit=c.status==='sold'?(c.sellPrice||0)-(c.buyPrice||0):null;
+    const pc=profit!==null?(profit>=0?'var(--green)':'var(--red)'):'';
+    const sid=esc(c.id), sl=esc(c.link), sn=esc(c.note), ssn=esc(c.sellNote);
+    const shortL = c.link ? (c.link.length>40 ? c.link.slice(0,40)+'...' : c.link) : '';
+    return `<div class="card-item ${c.status||'available'}">
+
+      <div class="card-head">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="card-badge ${c.status||'available'}">${c.status==='sold'?'✅ مباعة':'🟠 متاحة'}</span>
+          ${c.balance?`<span class="balance-pill">💵 ${fmt(c.balance)}</span>`:''}
+        </div>
+        <div class="card-actions">
+          ${c.status==='available'?`<button class="btn-icon sell-btn" onclick="openSell('${sid}')" title="تسجيل بيع">💰</button>`:''}
+          <button class="btn-icon del" onclick="openDelete('${sid}')" title="حذف">✕</button>
+        </div>
+      </div>
+
+      <div class="card-link">
+        <a href="${sl}" target="_blank" rel="noopener" title="${sl}">${esc(shortL)}</a>
+        <button class="btn-copy" onclick="copyLink('${sl}')" title="نسخ">📋</button>
+      </div>
+
+      <div class="card-row3">
+        <div class="mini-box">
+          <div class="mini-label">شراء</div>
+          <div class="mini-val buy">${fmt(c.buyPrice)}</div>
+          <div class="mini-date">${dateLabel(c.buyDate)}</div>
+        </div>
+        <div class="mini-arrow">${c.status==='sold'?'→':''}</div>
+        <div class="mini-box">
+          <div class="mini-label">بيع</div>
+          <div class="mini-val sell">${c.status==='sold'?fmt(c.sellPrice):'—'}</div>
+          <div class="mini-date">${c.status==='sold'?dateLabel(c.sellDate):''}</div>
+        </div>
+        ${c.status==='sold'?`
+        <div class="mini-box profit-box">
+          <div class="mini-label">ربح</div>
+          <div class="mini-val" style="color:${pc}">${profit>=0?'+':''}${fmt(profit)}</div>
+        </div>`:''}
+      </div>
+
+      ${sn||ssn?`<div class="card-notes">${sn?`<span>📝 ${sn}</span>`:''}${ssn?`<span>🤝 ${ssn}</span>`:''}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── ADD CARD ─────────────────────────────────────────────────
+window.addCard=async function(){
+  const link=document.getElementById('f-link').value.trim();
+  const balance=parseFloat(document.getElementById('f-balance').value);
+  const buyPrice=parseFloat(document.getElementById('f-buy-price').value);
+  const buyDate=document.getElementById('f-buy-date').value;
+  const note=document.getElementById('f-note').value.trim();
+  if(!link){showToast('أدخل رابط البطاقة','error');return;}
+  if(!balance||balance<=0){showToast('أدخل رصيد البطاقة','error');return;}
+  if(!buyPrice||buyPrice<=0){showToast('أدخل سعر الشراء','error');return;}
+  if(!buyDate){showToast('اختر تاريخ الشراء','error');return;}
+  const btn=document.getElementById('addBtn');
+  btn.textContent='⏳ جاري الحفظ...'; btn.disabled=true;
+  try{
+    await addDoc(col,{link,balance,buyPrice,buyDate,note,status:'available',createdAt:new Date().toISOString()});
+    document.getElementById('f-link').value='';
+    document.getElementById('f-balance').value='';
+    document.getElementById('f-buy-price').value='';
+    document.getElementById('f-note').value='';
+    document.getElementById('f-buy-date').valueAsDate=new Date();
+    showToast('✅ تمت إضافة البطاقة','success');
+    switchTab('cards');
+  }catch(e){showToast('خطأ: '+e.message,'error');}
+  finally{btn.textContent='✅ إضافة البطاقة';btn.disabled=false;}
+};
+
+// ── SELL ─────────────────────────────────────────────────────
+window.openSell=function(id){
+  _sellId=id;
+  const card=_all.find(c=>c.id===id);
+  document.getElementById('sellModalSub').textContent=card?card.link:'';
+  document.getElementById('m-sell-price').value='';
+  document.getElementById('m-sell-note').value='';
+  document.getElementById('m-sell-date').valueAsDate=new Date();
+  document.getElementById('sellModal').classList.add('show');
+};
+window.confirmSell=async function(){
+  const sellPrice=parseFloat(document.getElementById('m-sell-price').value);
+  const sellDate=document.getElementById('m-sell-date').value;
+  const sellNote=document.getElementById('m-sell-note').value.trim();
+  if(!sellPrice||sellPrice<=0){showToast('أدخل سعر البيع','error');return;}
+  if(!sellDate){showToast('اختر تاريخ البيع','error');return;}
+  try{
+    await updateDoc(doc(db,'visa_cards',_sellId),{status:'sold',sellPrice,sellDate,sellNote});
+    showToast('✅ تم تسجيل البيع','success'); closeModals();
+  }catch(e){showToast('خطأ: '+e.message,'error');}
+};
+
+// ── DELETE ────────────────────────────────────────────────────
+window.openDelete=function(id){_delId=id;document.getElementById('delModal').classList.add('show');};
+window.confirmDelete=async function(){
+  try{await deleteDoc(doc(db,'visa_cards',_delId));showToast('🗑️ تم الحذف','success');}
+  catch(e){showToast('خطأ في الحذف','error');}
+  closeModals();
+};
+window.closeModals=function(){
+  document.getElementById('sellModal').classList.remove('show');
+  document.getElementById('delModal').classList.remove('show');
+  _sellId=null;_delId=null;
+};
+
+// ── COPY / EXPORT / TABS ──────────────────────────────────────
+window.copyLink=function(link){navigator.clipboard.writeText(link).then(()=>showToast('📋 تم نسخ الرابط','success'));};
+window.exportCSV=function(){
+  if(!_all.length){showToast('لا توجد بيانات','error');return;}
+  const header=['الحالة','رابط البطاقة','سعر الشراء','تاريخ الشراء','سعر البيع','تاريخ البيع','الربح','ملاحظة'];
+  const rows=_all.map(c=>{
+    const p=c.status==='sold'?(c.sellPrice||0)-(c.buyPrice||0):'';
+    return[c.status==='sold'?'مباعة':'متاحة',c.link||'',c.buyPrice||'',c.buyDate||'',c.sellPrice||'',c.sellDate||'',p,(c.note||'').replace(/,/g,'؛')];
+  });
+  const csv='\uFEFF'+[header,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='visa-cards-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); showToast('✅ تم تصدير الملف','success');
+};
+window.switchTab=function(tab){
+  document.getElementById('tab-cards').style.display=tab==='cards'?'block':'none';
+  document.getElementById('tab-add').style.display=tab==='add'?'block':'none';
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='cards')||(i===1&&tab==='add')));
+};
+window.showToast=function(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),3000);
+};
+</script>
+</body>
+</html>
