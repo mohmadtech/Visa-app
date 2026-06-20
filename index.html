@@ -143,6 +143,12 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .report-card-row .prices .buy{color:var(--blue)}
 .report-card-row .prices .sell{color:var(--green)}
 .report-card-row .prices .profit{font-weight:900}
+/* PAGE TABS */
+.page-tabs-bar{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.page-tab-btn{padding:5px 13px;border:1px solid var(--border);border-radius:8px;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--muted);transition:all .2s;white-space:nowrap}
+.page-tab-btn:hover{border-color:var(--blue);color:var(--text)}
+.page-tab-btn.active{background:var(--blue);border-color:var(--blue);color:white;box-shadow:0 2px 8px rgba(59,130,246,.3)}
+.page-tab-count{font-size:11px;color:var(--muted);margin-right:auto;padding:4px 0}
 /* TOAST */
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface2);border:1px solid var(--border);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:1000;transition:transform .3s ease;box-shadow:0 8px 30px rgba(0,0,0,.4);white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
@@ -151,7 +157,22 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .empty-state{padding:50px 20px;text-align:center;color:var(--muted)}
 .empty-state .ei{font-size:44px;margin-bottom:10px}
 .loading{padding:50px;text-align:center;color:var(--muted);font-size:13px}
-@media(max-width:600px){.cards-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}.user-name{display:none}.report-month-stats{gap:8px}}
+/* CAPITAL */
+.capital-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.capital-bar-title{font-size:13px;font-weight:900;color:var(--gold);white-space:nowrap}
+.capital-input-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:200px}
+.capital-input-wrap input{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:13px;outline:none;transition:border-color .2s;width:160px}
+.capital-input-wrap input:focus{border-color:var(--gold)}
+.btn-set-capital{background:var(--gold);color:#0a0e1a;border:none;padding:8px 14px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.capital-metrics{display:flex;gap:14px;flex-wrap:wrap;flex:2}
+.cap-metric{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;background:var(--bg);border-radius:9px;border:1px solid var(--border);min-width:100px}
+.cap-metric-label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.cap-metric-val{font-size:16px;font-weight:900}
+.cap-progress{flex:1;min-width:160px}
+.cap-progress-label{font-size:10px;color:var(--muted);font-weight:700;margin-bottom:5px;display:flex;justify-content:space-between}
+.cap-bar-wrap{background:var(--bg);border-radius:20px;height:10px;overflow:hidden;border:1px solid var(--border)}
+.cap-bar-fill{height:100%;border-radius:20px;transition:width .5s ease;background:linear-gradient(90deg,var(--orange),var(--gold))}
+@media(max-width:600px){.cards-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}.user-name{display:none}.report-month-stats{gap:8px}.capital-bar{flex-direction:column;align-items:stretch}.capital-metrics{justify-content:space-between}}
 </style>
 </head>
 <body>
@@ -197,7 +218,45 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div class="stat-card s-buy"><div class="stat-label">قيمة البطاقات $</div><div class="stat-value c-buy" id="s-cards-usd">$0</div><div class="stat-sub" id="s-cards-usd-sub">إجمالي الفئات</div></div>
     </div>
 
-    <div class="tabs">
+    <!-- CAPITAL BAR -->
+    <div class="capital-bar" id="capitalBar">
+      <div class="capital-bar-title">💰 رأس المال</div>
+      <div class="capital-input-wrap">
+        <input type="number" id="capitalInput" placeholder="رأس المال الابتدائي (ل.س)" min="0" step="1000">
+        <button class="btn-set-capital" onclick="setCapital()">تثبيت</button>
+      </div>
+      <div class="capital-metrics" id="capitalMetrics" style="display:none">
+        <div class="cap-metric">
+          <span class="cap-metric-label">الابتدائي</span>
+          <span class="cap-metric-val" id="cap-initial" style="color:var(--gold)">0</span>
+        </div>
+        <div class="cap-metric">
+          <span class="cap-metric-label">مستثمر</span>
+          <span class="cap-metric-val" id="cap-invested" style="color:var(--blue)">0</span>
+        </div>
+        <div class="cap-metric">
+          <span class="cap-metric-label">متاح</span>
+          <span class="cap-metric-val" id="cap-free" style="color:var(--orange)">0</span>
+        </div>
+        <div class="cap-metric">
+          <span class="cap-metric-label">أرباح محققة</span>
+          <span class="cap-metric-val" id="cap-profit" style="color:var(--green)">0</span>
+        </div>
+        <div class="cap-metric">
+          <span class="cap-metric-label">الرصيد الفعلي</span>
+          <span class="cap-metric-val" id="cap-net" style="color:var(--gold)">0</span>
+        </div>
+      </div>
+      <div class="cap-progress" id="capProgress" style="display:none">
+        <div class="cap-progress-label">
+          <span>نسبة الاستثمار</span>
+          <span id="cap-pct">0%</span>
+        </div>
+        <div class="cap-bar-wrap"><div class="cap-bar-fill" id="capFill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+
       <button class="tab active" onclick="switchTab('cards')">💳 البطاقات</button>
       <button class="tab" onclick="switchTab('reports')">📊 التقارير</button>
       <button class="tab" onclick="switchTab('add')">➕ إضافة</button>
@@ -224,7 +283,9 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
         <input type="text" id="f-search" placeholder="بحث..." oninput="applyFilters()">
         <button class="btn-export" onclick="exportCSV()">⬇️ Excel</button>
       </div>
+      <div class="page-tabs-bar" id="pageTabsBar"></div>
       <div class="cards-grid" id="cardsGrid"><div class="loading">⏳ جاري التحميل...</div></div>
+      <div class="page-tabs-bar" id="pageTabsBarBottom" style="margin-top:12px"></div>
     </div>
 
     <!-- TAB: REPORTS -->
@@ -277,6 +338,31 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   </div>
 </div>
 
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal" style="max-width:400px">
+    <h3>✏️ تعديل البطاقة</h3>
+    <div class="modal-sub" id="editModalSub"></div>
+    <div class="form-group"><label>رابط البطاقة</label><input type="url" id="e-link" dir="ltr" placeholder="https://..."></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label>فئة البطاقة</label>
+        <select id="e-cat">
+          <option value="1">$1</option><option value="5">$5</option><option value="10">$10</option>
+          <option value="25">$25</option><option value="50">$50</option><option value="100">$100</option>
+        </select>
+      </div>
+      <div class="form-group"><label>سعر الشراء (ل.س)</label><input type="number" id="e-buy-price" min="0" step="0.01"></div>
+    </div>
+    <div class="form-group"><label>تاريخ الشراء</label><input type="date" id="e-buy-date"></div>
+    <div class="form-group"><label>ملاحظة</label><input type="text" id="e-note" placeholder="اختياري..."></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModals()">إلغاء</button>
+      <button class="btn-confirm-sell" onclick="confirmEdit()">✅ حفظ التعديل</button>
+    </div>
+  </div>
+</div>
+
 <!-- Delete Modal -->
 <div class="modal-overlay" id="delModal">
   <div class="modal">
@@ -293,7 +379,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 if (window.Telegram?.WebApp) { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); }
@@ -324,6 +410,7 @@ onAuthStateChanged(auth, user => {
     document.getElementById('userName').textContent = name;
     document.getElementById('f-buy-date').valueAsDate = new Date();
     document.getElementById('m-sell-date').valueAsDate = new Date();
+    initCapital();
     startListening();
   } else {
     document.getElementById('authScreen').style.display = 'flex';
@@ -342,6 +429,7 @@ function startListening() {
     applyFilters();
     updateStats(_all);
     renderReports(_all);
+    updateCapitalMetrics(_all);
   });
 }
 
@@ -425,11 +513,49 @@ window.applyFilters=function(){
   renderCards(list);
 };
 
-// ── RENDER CARDS ─────────────────────────────────────────────
+// ── RENDER CARDS (PAGINATED) ──────────────────────────────────
+const PAGE_SIZE = 5;
+let _currentPage = 0;
+let _filteredCards = [];
+
 function renderCards(cards){
-  const grid=document.getElementById('cardsGrid');
-  if(!cards.length){ grid.innerHTML='<div class="empty-state"><div class="ei">📭</div><p>لا توجد بطاقات</p></div>'; return; }
-  grid.innerHTML=cards.map(c=>{
+  _filteredCards = cards;
+  _currentPage = 0;
+  renderPage();
+}
+
+function renderPage(){
+  const grid = document.getElementById('cardsGrid');
+  const topBar = document.getElementById('pageTabsBar');
+  const botBar = document.getElementById('pageTabsBarBottom');
+  const cards = _filteredCards;
+
+  if(!cards.length){
+    grid.innerHTML='<div class="empty-state"><div class="ei">📭</div><p>لا توجد بطاقات</p></div>';
+    topBar.innerHTML=''; botBar.innerHTML='';
+    return;
+  }
+
+  const totalPages = Math.ceil(cards.length / PAGE_SIZE);
+  const start = _currentPage * PAGE_SIZE;
+  const pageCards = cards.slice(start, start + PAGE_SIZE);
+
+  // Build tabs HTML
+  function buildTabsHTML(){
+    if(totalPages <= 1) return '';
+    let html = `<span class="page-tab-count">${cards.length} بطاقة</span>`;
+    for(let i=0;i<totalPages;i++){
+      const from = i*PAGE_SIZE+1;
+      const to = Math.min((i+1)*PAGE_SIZE, cards.length);
+      html += `<button class="page-tab-btn${i===_currentPage?' active':''}" onclick="goPage(${i})">${from}–${to}</button>`;
+    }
+    return html;
+  }
+
+  topBar.innerHTML = buildTabsHTML();
+  botBar.innerHTML = totalPages > 1 ? buildTabsHTML() : '';
+
+  grid.innerHTML = pageCards.map(c=>{
     const profit=c.status==='sold'?(c.sellPrice||0)-(c.buyPrice||0):null;
     const pc=profit!==null?(profit>=0?'var(--green)':'var(--red)'):'';
     const sid=esc(c.id), sl=esc(c.link), sn=esc(c.note), ssn=esc(c.sellNote);
@@ -442,6 +568,7 @@ function renderCards(cards){
         </div>
         <div class="card-actions">
           ${c.status==='available'?`<button class="btn-icon sell-btn" onclick="openSell('${sid}')" title="بيع">💰</button>`:''}
+          <button class="btn-icon" onclick="openEdit('${sid}')" title="تعديل" style="color:var(--muted)">✏️</button>
           <button class="btn-icon del" onclick="openDelete('${sid}')" title="حذف">✕</button>
         </div>
       </div>
@@ -467,6 +594,12 @@ function renderCards(cards){
     </div>`;
   }).join('');
 }
+
+window.goPage = function(p){
+  _currentPage = p;
+  renderPage();
+  document.getElementById('tab-cards').scrollIntoView({behavior:'smooth', block:'start'});
+};
 
 // ── REPORTS ──────────────────────────────────────────────────
 function renderReports(cards){
@@ -581,6 +714,35 @@ window.addCard=async function(){
   finally{btn.textContent='✅ إضافة البطاقة';btn.disabled=false;}
 };
 
+// ── EDIT ──────────────────────────────────────────────────────
+let _editId = null;
+window.openEdit = function(id){
+  _editId = id;
+  const c = _all.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('editModalSub').textContent = c.link||'';
+  document.getElementById('e-link').value = c.link||'';
+  document.getElementById('e-cat').value = String(c.category||'');
+  document.getElementById('e-buy-price').value = c.buyPrice||'';
+  document.getElementById('e-buy-date').value = c.buyDate||'';
+  document.getElementById('e-note').value = c.note||'';
+  document.getElementById('editModal').classList.add('show');
+};
+window.confirmEdit = async function(){
+  const link = document.getElementById('e-link').value.trim();
+  const category = document.getElementById('e-cat').value;
+  const buyPrice = parseFloat(document.getElementById('e-buy-price').value);
+  const buyDate = document.getElementById('e-buy-date').value;
+  const note = document.getElementById('e-note').value.trim();
+  if(!link){showToast('أدخل رابط البطاقة','error');return;}
+  if(!buyPrice||buyPrice<=0){showToast('أدخل سعر الشراء','error');return;}
+  if(!buyDate){showToast('اختر تاريخ الشراء','error');return;}
+  try{
+    await updateDoc(doc(db,'visa_cards',_editId),{link,category:Number(category),buyPrice,buyDate,note});
+    showToast('✅ تم حفظ التعديل','success'); closeModals();
+  }catch(e){showToast('خطأ: '+e.message,'error');}
+};
+
 // ── SELL ─────────────────────────────────────────────────────
 window.openSell=function(id){
   _sellId=id;
@@ -613,8 +775,67 @@ window.confirmDelete=async function(){
 window.closeModals=function(){
   document.getElementById('sellModal').classList.remove('show');
   document.getElementById('delModal').classList.remove('show');
-  _sellId=null;_delId=null;
+  document.getElementById('editModal').classList.remove('show');
+  _sellId=null;_delId=null;_editId=null;
 };
+
+
+// ── CAPITAL ───────────────────────────────────────────────────
+let _capital = 0;
+const capitalRef = doc(db, 'settings', 'shared_capital');
+// ⚠️ تذكر: حدّث Firestore Rules لتشمل settings collection
+
+async function initCapital(){
+  try{
+    const snap = await getDoc(capitalRef);
+    if(snap.exists() && snap.data().amount > 0){
+      _capital = snap.data().amount;
+      document.getElementById('capitalInput').value = _capital;
+      showCapitalMetrics();
+      updateCapitalMetrics(_all);
+    }
+  }catch(e){ console.error('capital load error',e); }
+}
+
+window.setCapital=async function(){
+  const val=parseFloat(document.getElementById('capitalInput').value);
+  if(!val||val<=0){showToast('أدخل قيمة رأس المال','error');return;}
+  try{
+    await setDoc(capitalRef, {amount: val});
+    _capital = val;
+    showCapitalMetrics();
+    updateCapitalMetrics(_all);
+    showToast('✅ تم تثبيت رأس المال','success');
+  }catch(e){showToast('خطأ في الحفظ: '+e.message,'error');}
+};
+
+function showCapitalMetrics(){
+  document.getElementById('capitalMetrics').style.display='flex';
+  document.getElementById('capProgress').style.display='block';
+}
+
+function updateCapitalMetrics(cards){
+  if(!_capital||_capital<=0) return;
+  const availCards=cards.filter(c=>c.status==='available');
+  const invested=availCards.reduce((s,c)=>s+(c.buyPrice||0),0);
+  const soldCards=cards.filter(c=>c.status==='sold');
+  const realizedProfit=soldCards.reduce((s,c)=>s+((c.sellPrice||0)-(c.buyPrice||0)),0);
+  const free=_capital-invested+realizedProfit;
+  const net=_capital+realizedProfit;
+  const pct=_capital>0?Math.min(100,Math.round(invested/_capital*100)):0;
+  const fmtShort=n=>'ل.س '+(parseFloat(n)||0).toLocaleString('ar');
+  document.getElementById('cap-initial').textContent=fmtShort(_capital);
+  document.getElementById('cap-invested').textContent=fmtShort(invested);
+  document.getElementById('cap-free').textContent=fmtShort(Math.max(0,free));
+  const pp=document.getElementById('cap-profit');
+  pp.textContent=(realizedProfit>=0?'+':'')+fmtShort(realizedProfit);
+  pp.style.color=realizedProfit>=0?'var(--green)':'var(--red)';
+  const np=document.getElementById('cap-net');
+  np.textContent=fmtShort(net);
+  np.style.color=net>=_capital?'var(--gold)':'var(--red)';
+  document.getElementById('cap-pct').textContent=pct+'%';
+  document.getElementById('capFill').style.width=pct+'%';
+}
 
 // ── UTILS ─────────────────────────────────────────────────────
 window.copyLink=function(link){navigator.clipboard.writeText(link).then(()=>showToast('📋 تم نسخ الرابط','success'));};
